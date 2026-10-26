@@ -1,6 +1,8 @@
 # Conteneurisation d'une application LAMP avec Docker
 
-Ce projet reprend l'application PHP du projet Ansible et la fait tourner dans des conteneurs Docker. Le serveur web Apache + PHP et la base MySQL sont lancés ensemble avec Docker Compose. Le détail de ma démarche est dans [JOURNAL.md](JOURNAL.md).
+L'objectif de ce projet est de conteneuriser une page PHP servie par Apache et de la déployer sur ma VM Ubuntu via Docker Compose, accompagnée d'une base de données MySQL prête à l'emploi. 
+
+Contrairement au projet Ansible où les services étaient installés directement sur le système de la VM (port 80), les conteneurs permettent ici d'isoler l'application et ses dépendances en exposant le service web sur le port `8080` de la VM. Le détail de ma démarche est dans [JOURNAL.md](JOURNAL.md).
 
 ## Fichiers
 

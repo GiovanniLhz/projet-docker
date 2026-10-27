@@ -1,34 +1,43 @@
-# Journal de Bord Projet Évolutif Sciensano
+# Journal de Bord du  Projet Docker
 
-## Session 2 : Conteneurisation et Orchestration Multi-Conteneurs avec Docker
+## Conteneuriser un serveur Apache, son interpréteur PHP et une page de test en php 
 
-### 1. Structure & Configuration de base
+### 1. Structure & Configuration de base (Le Dockerfile)
 
-* Écriture du fichier Web dynamique `index.php` pour valider le serveur PHP.
-* Création du fichier de construction `Dockerfile` basé sur `php:8.2-apache`.
-* Transfert automatique du code source vers `/var/www/html/index.php`.
-* Exposition du port HTTP `80` au niveau de l'image.
+* **`FROM php:8.2-apache`** : Récupère l'image officielle de PHP avec Apache sur le Docker Hub pour créer une image personnalisée et utilisable.
+* **Création du `index.php`** : Écriture d'un fichier PHP de test pour valider le bon fonctionnement du serveur web Apache et de son interpréteur PHP.
+* **`COPY index.php /var/www/html/index.php`** : Permet de copier le fichier `index.php` de la VM vers l'intérieur du conteneur. Par défaut, Apache cherche ses fichiers web à cet emplacement (`/var/www/html/`) pour les afficher.
+* **`EXPOSE 80`** : Indique que le conteneur est configuré pour recevoir du trafic sur le port 80, qui est le port par défaut utilisé par Apache.
 
-### 2. Premier test du conteneur Web tout seul
+---
 
-* Build de l'image Docker locale `projet-docker-web`.
-* Déploiement du conteneur Web avec remappage de port vers l'hôte (`8080:80`).
-* Traitement du conflit de port `8080` en coupant les conteneurs isolés via `docker stop`.
-* Validation du fonctionnement via le terminal avec `curl http://localhost:8080`.
+### 2. Le cheminement d'une requête vers le conteneur
+
+1. **Envoi de la requête** : On envoie une requête vers le serveur (depuis un navigateur ou via la commande `curl`) sur l'adresse `http://192.168.56.101:8080`.
+2. **Réception sur la VM** : La machine hôte (la VM Ubuntu) reçoit la requête sur le port **`8080`**.
+3. **Redirection par Docker** : Le *Docker Daemon* (le moteur Docker) surveille ce port `8080` et redirige le trafic vers le port interne du conteneur (le port `80`).
+4. **Interprétation et Réponse** : Le service Apache à l'intérieur du conteneur lit le fichier `index.php`, le fait interpréter par PHP, et renvoie la page web en réponse.
+
+---
 
 ### 3. Orchestration Multi-Services (`docker-compose.yml`)
 
-* Rédaction du fichier `docker-compose.yml` liant le service Web et le service Base de Données.
-* Configuration du service Web :
-  * Volume de développement dynamique `./:/var/www/html`.
-  * Dépendance de démarrage `depends_on: db`.
-* Configuration du service Base de Données (`mysql:8.0`) :
-  * Variables d'environnement : `MYSQL_ROOT_PASSWORD` et création de `sciensano_db`.
-* Mappage des ports d'accès : `8080:80` (Web) et `3306:3306` (MySQL).
+* **`version: '3.8'`** : Spécifie la version de la syntaxe utilisée pour le fichier Docker Compose.
+* **`services:`** : Permet de déclarer l'ensemble des conteneurs du projet (ici, `web` et `db`).
+* **Configuration du service `web`** :
+  * **`build: .`** : Construit l'image locale en se basant sur le `Dockerfile` situé dans le dossier courant.
+  * **`ports: "8080:80"`** : Fait la liaison entre le port alternatif `8080` de la VM et le port `80` du conteneur.
+  * **`volumes: .:/var/www/html`** : Synchronise en direct le dossier de la VM avec le dossier du conteneur. Ainsi, toute modification du fichier `index.php` est prise en compte instantanément, sans avoir à reconstruire l'image.
+  * **`depends_on: db`** : Assure que le conteneur de la base de données démarre en premier, avant le conteneur web.
+* **Configuration du service Base de Données (`db`)** :
+  * **`image: mysql:8.0`** : Télécharge l'image officielle de MySQL 8.0 depuis le Docker Hub.
+  * **`environment:`** : Configure automatiquement les paramètres au premier lancement (mot de passe root `test1234` et création de la base de données `sciensano_db`).
+  * **`ports: "3306:3306"`** : Ouvre le port d'écoute standard de MySQL pour permettre les échanges de données.
 
-### 4. Validation & Contrôle Qualité
+---
 
-* Lancement unifié de la stack en arrière-plan via `docker-compose up -d`.
-* Vérification CLI : `curl http://localhost:8080` (Code HTTP 200 / Rendu PHP valide).
-* Vérification BDD : Contrôle de la création de `sciensano_db` via `docker exec`.
-* Rendu Navigateur : Validation visuelle sur l'hôte via `http://localhost:8080`.
+### 4. Validation & Contrôle
+
+* **Lancement** : `docker compose up -d` pour démarrer toute l'architecture en arrière-plan.
+* **Test CLI** : `curl http://192.168.56.101:8080` (vérifie le code HTTP 200 et la bonne interprétation du PHP).
+* **Test Navigateur** : Validation visuelle directe sur l'hôte via `http://192.168.56.101:8080`.

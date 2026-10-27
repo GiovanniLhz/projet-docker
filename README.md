@@ -7,8 +7,8 @@ Contrairement au projet Ansible où les services étaient installés directement
 ## Fichiers
 
 - `Dockerfile` : construit l'image PHP 8.2 avec Apache et y copie `index.php`
-- `docker-compose.yml` : lance le serveur web et la base MySQL 8.0
-- `index.php` : page de test qui affiche la version de PHP
+- `docker-compose.yml` : lance le serveur web et la base de donnée MySQL 8.0
+- `index.php` : page de test pour vériffier le bon fonctionnement du projet 
 - `JOURNAL.md` : mon journal de bord
 
 ## Lancer le projet

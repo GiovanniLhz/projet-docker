@@ -24,5 +24,3 @@ Vérifier que tout tourne :
 ```bash
 docker compose ps
 ```
-
-Tester la page dans le navigateur :

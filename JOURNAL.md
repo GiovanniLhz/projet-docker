@@ -1,43 +1,41 @@
-# Journal de Bord du  Projet Docker
-
-## Conteneuriser un serveur Apache, son interpréteur PHP et une page de test en php 
-
-### 1. Structure & Configuration de base (Le Dockerfile)
-
-* **`FROM php:8.2-apache`** : Récupère l'image officielle de PHP avec Apache sur le Docker Hub pour créer une image personnalisée et utilisable.
-* **Création du `index.php`** : Écriture d'un fichier PHP de test pour valider le bon fonctionnement du serveur web Apache et de son interpréteur PHP.
-* **`COPY index.php /var/www/html/index.php`** : Permet de copier le fichier `index.php` de la VM vers l'intérieur du conteneur. Par défaut, Apache cherche ses fichiers web à cet emplacement (`/var/www/html/`) pour les afficher.
-* **`EXPOSE 80`** : Indique que le conteneur est configuré pour recevoir du trafic sur le port 80, qui est le port par défaut utilisé par Apache.
-
+Journal de Bord du Projet Kubernetes
+Orchestration de conteneurs avec Kubernetes (MicroK8s) et résolution d'incidents système
+1. Architecture et Ingestion Kubernetes
+Déploiement d'un cluster léger via MicroK8s sur l'environnement Ubuntu Server (`192.168.56.101`).
+Utilisation de `kubectl` pour administrer, créer et inspecter les objets du cluster.
+Séparation des rôles : Un bloc pour les Pods (les conteneurs) et un bloc pour le réseau (le service).
 ---
-
-### 2. Le cheminement d'une requête vers le conteneur
-
-1. **Envoi de la requête** : On envoie une requête vers le serveur (depuis un navigateur ou via la commande `curl`) sur l'adresse `http://192.168.56.101:8080`.
-2. **Réception sur la VM** : La machine hôte (la VM Ubuntu) reçoit la requête sur le port **`8080`**.
-3. **Redirection par Docker** : Le *Docker Daemon* (le moteur Docker) surveille ce port `8080` et redirige le trafic vers le port interne du conteneur (le port `80`).
-4. **Interprétation et Réponse** : Le service Apache à l'intérieur du conteneur lit le fichier `index.php`, le fait interpréter par PHP, et renvoie la page web en réponse.
-
+2. Déchiffrage et Configuration (`web-deployment.yaml`)
+Le Déploiement (`Deployment`) :
+`apiVersion: apps/v1` : Indique à l'API de Kubernetes d'utiliser la version 1 de la catégorie "apps" pour comprendre et exécuter le déploiement.
+`kind: Deployment` : Construit l'objet Deployment qui va gérer et maintenir nos Pods en vie.
+`metadata:` / `name: mon-site-web-deployment` : Sert à identifier et nommer le déploiement.
+`spec:` : Les caractéristiques techniques qui donnent les ordres sur ce que le Deployment doit faire.
+`replicas: 2` : Lance et maintient 2 copies identiques (les Pods) en même temps pour assurer la haute disponibilité.
+`selector:` & `matchLabels:` : Critère de sélection pour que Kubernetes reconnaisse les Pods grâce au badge `app: mon-site-web`.
+`template:` : Le moule réutilisable qui fabrique les Pods (ce qui évite de réécrire toute la configuration).
+`containers:` : Décrit le conteneur à l'intérieur du Pod :
+`name: nginx` : Le nom du conteneur.
+`image: nginx:latest` : Télécharge la dernière image officielle de Nginx depuis le site officiel (Docker Hub) avec ses dépendances.
+`containerPort: 80` : Le port sur lequel Nginx écoute à l'intérieur du Pod (le port web par excellence).
+Le Service Réseau (`Service - NodePort`) :
+`apiVersion: v1` & `kind: Service` : Sélectionne la catégorie Service pour créer un point d'entrée réseau (un "standardiste").
+`metadata:` / `name: mon-site-web-service` : Nom unique donné au Service.
+`type: NodePort` : Ouvre une porte externe sur notre VM pour intercepter les requêtes venant de l'extérieur.
+`selector:` / `app: mon-site-web` : Permet au Service de cibler et d'envoyer le trafic uniquement vers les bons Pods.
+`ports:` :
+`port: 80` : Le port interne du Service.
+`targetPort: 80` : La cible où le trafic est redirigé (le port 80 du conteneur Nginx).
+`nodePort: 30080` : Le port magique externe (compris entre 30000 et 32767) utilisé pour envoyer une requête vers la VM : `http://192.168.56.101:30080`.
 ---
-
-### 3. Orchestration Multi-Services (`docker-compose.yml`)
-
-* **`version: '3.8'`** : Spécifie la version de la syntaxe utilisée pour le fichier Docker Compose.
-* **`services:`** : Permet de déclarer l'ensemble des conteneurs du projet (ici, `web` et `db`).
-* **Configuration du service `web`** :
-  * **`build: .`** : Construit l'image locale en se basant sur le `Dockerfile` situé dans le dossier courant.
-  * **`ports: "8080:80"`** : Fait la liaison entre le port alternatif `8080` de la VM et le port `80` du conteneur.
-  * **`volumes: .:/var/www/html`** : Synchronise en direct le dossier de la VM avec le dossier du conteneur. Ainsi, toute modification du fichier `index.php` est prise en compte instantanément, sans avoir à reconstruire l'image.
-  * **`depends_on: db`** : Assure que le conteneur de la base de données démarre en premier, avant le conteneur web.
-* **Configuration du service Base de Données (`db`)** :
-  * **`image: mysql:8.0`** : Télécharge l'image officielle de MySQL 8.0 depuis le Docker Hub.
-  * **`environment:`** : Configure automatiquement les paramètres au premier lancement (mot de passe root `test1234` et création de la base de données `sciensano_db`).
-  * **`ports: "3306:3306"`** : Ouvre le port d'écoute standard de MySQL pour permettre les échanges de données.
-
+3. Résolution d'Incident SysAdmin (Disque & LVM)
+Diagnostic des Pods en `Pending` : Utilisation de `kubectl describe pod` pour identifier un Taint de sécurité lié à une pression disque (`disk-pressure`).
+Nettoyage Docker : Suppression des images et du cache inutilisés via `sudo docker system prune -a -f`.
+Extension de partition LVM : Prise de conscience que l'installateur Ubuntu réserve par défaut la moitié de l'espace disque. Utilisation de `lvextend -l +100%FREE` et `resize2fs` pour faire passer la partition principale de 12 Go à 23 Go et éliminer définitivement la saturation.
 ---
-
-### 4. Validation & Contrôle
-
-* **Lancement** : `docker compose up -d` pour démarrer toute l'architecture en arrière-plan.
-* **Test CLI** : `curl http://192.168.56.101:8080` (vérifie le code HTTP 200 et la bonne interprétation du PHP).
-* **Test Navigateur** : Validation visuelle directe sur l'hôte via `http://192.168.56.101:8080`.
+4. Validation & Contrôle
+Application : `microk8s kubectl apply -f web-deployment.yaml` pour appliquer la configuration.
+Test CLI :
+Vérification des Pods en `Running` (`1/1`) via `microk8s kubectl get pods`.
+Contrôle du Service via `microk8s kubectl get services`.
+Test Navigateur : Validation visuelle directe sur l'hôte via `http://192.168.56.101:30080` (affichage de la page "Welcome to nginx!").
